@@ -1,113 +1,103 @@
 import React from "react";
-import styled from "styled-components";
+import type { ModalProps } from "@mantine/core";
+import { Modal, Group, Button, TextInput, Stack, Paper, Text } from "@mantine/core";
+import { Dropzone } from "@mantine/dropzone";
+import { event as gaEvent } from "nextjs-google-analytics";
 import toast from "react-hot-toast";
-
-import { Modal, ModalProps } from "src/components/Modal";
-import { Button } from "src/components/Button";
-import { Input } from "src/components/Input";
 import { AiOutlineUpload } from "react-icons/ai";
-import useConfig from "src/hooks/store/useConfig";
+import type { FileFormat } from "src/enums/file.enum";
+import useFile from "src/store/useFile";
 
-const StyledModalContent = styled(Modal.Content)`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-direction: column;
-`;
-
-const StyledUploadWrapper = styled.label`
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  background: ${({ theme }) => theme.BACKGROUND_SECONDARY};
-  border: 2px dashed ${({ theme }) => theme.BACKGROUND_TERTIARY};
-  border-radius: 5px;
-  width: 100%;
-  min-height: 200px;
-  padding: 16px;
-  cursor: pointer;
-
-  input[type="file"] {
-    display: none;
-  }
-`;
-
-const StyledFileName = styled.span`
-  color: ${({ theme }) => theme.INTERACTIVE_NORMAL};
-`;
-
-const StyledUploadMessage = styled.h3`
-  color: ${({ theme }) => theme.INTERACTIVE_ACTIVE};
-  margin-bottom: 0;
-`;
-
-export const ImportModal: React.FC<ModalProps> = ({ visible, setVisible }) => {
-  const setJson = useConfig((state) => state.setJson);
+export const ImportModal = ({ opened, onClose }: ModalProps) => {
   const [url, setURL] = React.useState("");
-  const [jsonFile, setJsonFile] = React.useState<File | null>(null);
+  const [file, setFile] = React.useState<File | null>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) setJsonFile(e.target.files?.item(0));
-  };
+  const setContents = useFile(state => state.setContents);
+  const setFormat = useFile(state => state.setFormat);
 
   const handleImportFile = () => {
     if (url) {
-      setJsonFile(null);
+      setFile(null);
 
       toast.loading("Loading...", { id: "toastFetch" });
+      gaEvent("fetch_url");
+
       return fetch(url)
-        .then((res) => res.json())
-        .then((json) => {
-          setJson(JSON.stringify(json));
-          setVisible(false);
+        .then(res => res.json())
+        .then(json => {
+          setContents({ contents: JSON.stringify(json, null, 2) });
+          onClose();
         })
         .catch(() => toast.error("Failed to fetch JSON!"))
         .finally(() => toast.dismiss("toastFetch"));
-    }
+    } else if (file) {
+      const lastIndex = file.name.lastIndexOf(".");
+      const format = file.name.substring(lastIndex + 1);
+      setFormat(format as FileFormat);
 
-    if (jsonFile) {
-      const reader = new FileReader();
+      file.text().then(text => {
+        setContents({ contents: text });
+        setFile(null);
+        setURL("");
+        onClose();
+      });
 
-      reader.readAsText(jsonFile, "UTF-8");
-      reader.onload = function (data) {
-        setJson(data.target?.result as string);
-        setVisible(false);
-      };
+      gaEvent("import_file", { label: format });
     }
   };
 
   return (
-    <Modal visible={visible} setVisible={setVisible}>
-      <Modal.Header>Import JSON</Modal.Header>
-      <StyledModalContent>
-        <Input
+    <Modal
+      title="Import File"
+      opened={opened}
+      onClose={() => {
+        setFile(null);
+        setURL("");
+        onClose();
+      }}
+      centered
+    >
+      <Stack py="sm">
+        <TextInput
           value={url}
-          onChange={(e) => setURL(e.target.value)}
+          onChange={e => setURL(e.target.value)}
           type="url"
           placeholder="URL of JSON to fetch"
+          data-autofocus
         />
-        <StyledUploadWrapper>
-          <input
-            key={jsonFile?.name}
-            onChange={handleFileChange}
-            type="file"
-            accept="application/JSON"
-          />
-          <AiOutlineUpload size={48} />
-          <StyledUploadMessage>Click Here to Upload JSON</StyledUploadMessage>
-          <StyledFileName>{jsonFile?.name ?? "None"}</StyledFileName>
-        </StyledUploadWrapper>
-      </StyledModalContent>
-      <Modal.Controls setVisible={setVisible}>
-        <Button
-          status="SECONDARY"
-          onClick={handleImportFile}
-          disabled={!(jsonFile || url)}
-        >
+        <Paper radius="md" style={{ cursor: "pointer" }}>
+          <Dropzone
+            onDrop={files => setFile(files[0])}
+            onReject={files => toast.error(`Unable to load file ${files[0].file.name}`)}
+            maxSize={500 * 1024}
+            maxFiles={1}
+            p="md"
+            accept={[
+              "application/json",
+              "application/x-yaml",
+              "text/csv",
+              "application/xml",
+              "application/toml",
+            ]}
+          >
+            <Stack justify="center" align="center" gap="sm" mih={220}>
+              <AiOutlineUpload size={48} />
+              <Text fw="bold">Drop here or click to upload files</Text>
+              <Text c="dimmed" fz="xs">
+                (Max 500 KB)
+              </Text>
+              <Text c="dimmed" fz="sm">
+                {file?.name ?? "None"}
+              </Text>
+            </Stack>
+          </Dropzone>
+        </Paper>
+      </Stack>
+      <Group justify="right">
+        <Button onClick={handleImportFile} disabled={!(file || url)}>
           Import
         </Button>
-      </Modal.Controls>
+      </Group>
     </Modal>
   );
 };

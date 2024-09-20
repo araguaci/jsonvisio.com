@@ -1,36 +1,38 @@
 import React from "react";
-import { FiCopy, FiDownload } from "react-icons/fi";
-import { toBlob, toPng } from "html-to-image";
-import { Button } from "src/components/Button";
-import { Input } from "src/components/Input";
-import { Modal, ModalProps } from "src/components/Modal";
-import { TwitterPicker } from "react-color";
-import { TwitterPickerStylesProps } from "react-color/lib/components/twitter/Twitter";
-import styled from "styled-components";
+import type { ModalProps } from "@mantine/core";
+import {
+  ColorPicker,
+  TextInput,
+  SegmentedControl,
+  Group,
+  Modal,
+  Button,
+  Divider,
+  ColorInput,
+} from "@mantine/core";
+import { toBlob, toJpeg, toPng, toSvg } from "html-to-image";
+import { event as gaEvent } from "nextjs-google-analytics";
 import toast from "react-hot-toast";
-import useConfig from "src/hooks/store/useConfig";
+import { FiCopy, FiDownload } from "react-icons/fi";
 
-const ColorPickerStyles: Partial<TwitterPickerStylesProps> = {
-  card: {
-    background: "transparent",
-    boxShadow: "none",
-  },
-  body: {
-    padding: 0,
-  },
-  input: {
-    background: "rgba(0, 0, 0, 0.2)",
-    boxShadow: "none",
-    textTransform: "none",
-    whiteSpace: "nowrap",
-    textOverflow: "ellipsis",
-  },
-  hash: {
-    background: "rgba(180, 180, 180, 0.3)",
-  },
+enum Extensions {
+  SVG = "svg",
+  PNG = "png",
+  JPEG = "jpeg",
+}
+
+const getDownloadFormat = (format: Extensions) => {
+  switch (format) {
+    case Extensions.SVG:
+      return toSvg;
+    case Extensions.PNG:
+      return toPng;
+    case Extensions.JPEG:
+      return toJpeg;
+  }
 };
 
-const defaultColors = [
+const swatches = [
   "#B80000",
   "#DB3E00",
   "#FCCB00",
@@ -51,7 +53,8 @@ const defaultColors = [
 ];
 
 function downloadURI(uri: string, name: string) {
-  var link = document.createElement("a");
+  const link = document.createElement("a");
+
   link.download = name;
   link.href = uri;
   document.body.appendChild(link);
@@ -59,58 +62,19 @@ function downloadURI(uri: string, name: string) {
   document.body.removeChild(link);
 }
 
-const StyledContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 12px 0;
-  border-top: 1px solid ${({ theme }) => theme.BACKGROUND_MODIFIER_ACCENT};
-  font-size: 12px;
-  line-height: 16px;
-  font-weight: 600;
-  text-transform: uppercase;
-  color: ${({ theme }) => theme.INTERACTIVE_NORMAL};
-
-  &:first-of-type {
-    padding-top: 0;
-    border: none;
-  }
-`;
-
-const StyledColorWrapper = styled.div`
-  display: flex;
-  justify-content: space-between;
-`;
-
-const StyledColorIndicator = styled.div<{ color: string }>`
-  flex: 1;
-  width: 100%;
-  height: auto;
-  border-radius: 6px;
-  background: ${({ color }) => color};
-  border: 1px solid;
-  border-color: rgba(0, 0, 0, 0.1);
-`;
-
-export const DownloadModal: React.FC<ModalProps> = ({
-  visible,
-  setVisible,
-}) => {
-  const setConfig = useConfig((state) => state.setConfig);
+export const DownloadModal = ({ opened, onClose }: ModalProps) => {
+  const [extension, setExtension] = React.useState(Extensions.PNG);
   const [fileDetails, setFileDetails] = React.useState({
     filename: "jsoncrack.com",
-    backgroundColor: "transparent",
+    backgroundColor: "#FFFFFF",
     quality: 1,
   });
 
   const clipboardImage = async () => {
     try {
       toast.loading("Copying to clipboard...", { id: "toastClipboard" });
-      setConfig("performanceMode", false);
 
-      const imageElement = document.querySelector(
-        "svg[id*='ref']"
-      ) as HTMLElement;
+      const imageElement = document.querySelector("svg[id*='ref']") as HTMLElement;
 
       const blob = await toBlob(imageElement, {
         quality: fileDetails.quality,
@@ -119,90 +83,89 @@ export const DownloadModal: React.FC<ModalProps> = ({
 
       if (!blob) return;
 
-      navigator.clipboard.write([
+      navigator.clipboard?.write([
         new ClipboardItem({
           [blob.type]: blob,
         }),
       ]);
 
       toast.success("Copied to clipboard");
+      gaEvent("clipboard_img");
     } catch (error) {
       toast.error("Failed to copy to clipboard");
     } finally {
       toast.dismiss("toastClipboard");
-      setVisible(false);
-      setConfig("performanceMode", true);
+      onClose();
     }
   };
 
   const exportAsImage = async () => {
     try {
       toast.loading("Downloading...", { id: "toastDownload" });
-      setConfig("performanceMode", false);
 
-      const imageElement = document.querySelector(
-        "svg[id*='ref']"
-      ) as HTMLElement;
+      const imageElement = document.querySelector("svg[id*='ref']") as HTMLElement;
 
-      const dataURI = await toPng(imageElement, {
+      const dataURI = await getDownloadFormat(extension)(imageElement, {
         quality: fileDetails.quality,
         backgroundColor: fileDetails.backgroundColor,
       });
 
-      downloadURI(dataURI, `${fileDetails.filename}.png`);
+      downloadURI(dataURI, `${fileDetails.filename}.${extension}`);
+      gaEvent("download_img", { label: extension });
     } catch (error) {
       toast.error("Failed to download image!");
     } finally {
       toast.dismiss("toastDownload");
-      setVisible(false);
-      setConfig("performanceMode", true);
+      onClose();
     }
   };
 
-  const updateDetails = (
-    key: keyof typeof fileDetails,
-    value: string | number
-  ) => setFileDetails({ ...fileDetails, [key]: value });
+  const updateDetails = (key: keyof typeof fileDetails, value: string | number) =>
+    setFileDetails({ ...fileDetails, [key]: value });
 
   return (
-    <Modal visible={visible} setVisible={setVisible}>
-      <Modal.Header>Download Image</Modal.Header>
-      <Modal.Content>
-        <StyledContainer>
-          File Name
-          <StyledColorWrapper>
-            <Input
-              placeholder="File Name"
-              value={fileDetails.filename}
-              onChange={(e) => updateDetails("filename", e.target.value)}
-            />
-          </StyledColorWrapper>
-        </StyledContainer>
-        <StyledContainer>
-          Background Color
-          <StyledColorWrapper>
-            <TwitterPicker
-              triangle="hide"
-              colors={defaultColors}
-              color={fileDetails.backgroundColor}
-              onChange={(color) => updateDetails("backgroundColor", color.hex)}
-              styles={{
-                default: ColorPickerStyles,
-              }}
-            />
-            <StyledColorIndicator color={fileDetails.backgroundColor} />
-          </StyledColorWrapper>
-        </StyledContainer>
-      </Modal.Content>
-      <Modal.Controls setVisible={setVisible}>
-        <Button status="SECONDARY" onClick={clipboardImage}>
-          <FiCopy size={18} /> Clipboard
+    <Modal opened={opened} onClose={onClose} title="Download Image" centered>
+      <TextInput
+        label="File Name"
+        value={fileDetails.filename}
+        onChange={e => updateDetails("filename", e.target.value)}
+        mb="lg"
+      />
+      <SegmentedControl
+        value={extension}
+        onChange={e => setExtension(e as Extensions)}
+        fullWidth
+        data={[
+          { label: "SVG", value: Extensions.SVG },
+          { label: "PNG", value: Extensions.PNG },
+          { label: "JPEG", value: Extensions.JPEG },
+        ]}
+        mb="lg"
+      />
+      <ColorInput
+        label="Background Color"
+        value={fileDetails.backgroundColor}
+        onChange={color => updateDetails("backgroundColor", color)}
+        withEyeDropper={false}
+        mb="lg"
+      />
+      <ColorPicker
+        format="rgba"
+        value={fileDetails.backgroundColor}
+        onChange={color => updateDetails("backgroundColor", color)}
+        swatches={swatches}
+        withPicker={false}
+        fullWidth
+      />
+      <Divider my="xs" />
+      <Group justify="right">
+        <Button leftSection={<FiCopy />} onClick={clipboardImage}>
+          Clipboard
         </Button>
-        <Button status="SUCCESS" onClick={exportAsImage}>
-          <FiDownload size={18} />
+        <Button color="green" leftSection={<FiDownload />} onClick={exportAsImage}>
           Download
         </Button>
-      </Modal.Controls>
+      </Group>
     </Modal>
   );
 };

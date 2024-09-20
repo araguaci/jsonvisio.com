@@ -1,4 +1,8 @@
 User-agent: *
 Allow: /
-Disallow: /*?*
+
+User-agent: *
+Disallow: /forgot-password
 Disallow: /widget
+
+Sitemap: https://jsoncrack.com/sitemap.txt

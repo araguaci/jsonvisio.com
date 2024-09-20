@@ -1,27 +1,35 @@
 import React from "react";
-import toast from "react-hot-toast";
-import { Button } from "src/components/Button";
-import { Modal, ModalProps } from "src/components/Modal";
-import useConfig from "src/hooks/store/useConfig";
+import { useRouter } from "next/router";
+import type { ModalProps } from "@mantine/core";
+import { Modal, Group, Button, Text, Divider } from "@mantine/core";
+import { documentSvc } from "src/lib/api/document.service";
+import useJson from "src/store/useJson";
 
-export const ClearModal: React.FC<ModalProps> = ({ visible, setVisible }) => {
-  const setJson = useConfig((state) => state.setJson);
+export const ClearModal = ({ opened, onClose }: ModalProps) => {
+  const setJson = useJson(state => state.setJson);
+  const { query, replace } = useRouter();
 
   const handleClear = () => {
     setJson("{}");
-    toast.success(`Cleared JSON and removed from memory.`);
-    setVisible(false);
+    onClose();
+
+    if (typeof query.json === "string") {
+      documentSvc.delete(query.json);
+      replace("/editor");
+    }
   };
 
   return (
-    <Modal visible={visible} setVisible={setVisible}>
-      <Modal.Header>Clear JSON</Modal.Header>
-      <Modal.Content>Are you sure you want to clear JSON?</Modal.Content>
-      <Modal.Controls setVisible={setVisible}>
-        <Button status="DANGER" onClick={handleClear}>
+    <Modal title="Delete JSON" opened={opened} onClose={onClose} centered>
+      <Group py="sm">
+        <Text>Are you sure you want to delete JSON?</Text>
+      </Group>
+      <Divider py="xs" />
+      <Group justify="right">
+        <Button color="red" onClick={handleClear}>
           Confirm
         </Button>
-      </Modal.Controls>
+      </Group>
     </Modal>
   );
 };

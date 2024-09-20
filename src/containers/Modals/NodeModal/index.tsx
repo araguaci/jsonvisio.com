@@ -1,66 +1,62 @@
 import React from "react";
-import toast from "react-hot-toast";
-import { FiCopy } from "react-icons/fi";
-import { Button } from "src/components/Button";
-import { Modal } from "src/components/Modal";
-import styled from "styled-components";
+import type { ModalProps } from "@mantine/core";
+import { Modal, Stack, Text, ScrollArea, Button } from "@mantine/core";
+import { CodeHighlight } from "@mantine/code-highlight";
+import { event as gaEvent } from "nextjs-google-analytics";
+import { VscLock } from "react-icons/vsc";
+import useGraph from "src/containers/Editor/components/views/GraphView/stores/useGraph";
+import useModal from "src/store/useModal";
 
-interface NodeModalProps {
-  selectedNode: object;
-  visible: boolean;
-  closeModal: () => void;
-}
-
-const StyledTextarea = styled.textarea`
-  resize: none;
-  width: 100%;
-  min-height: 200px;
-
-  padding: 10px;
-  background: ${({ theme }) => theme.BACKGROUND_TERTIARY};
-  color: ${({ theme }) => theme.INTERACTIVE_NORMAL};
-  outline: none;
-  border-radius: 4px;
-  line-height: 20px;
-  border: none;
-`;
-
-export const NodeModal = ({
-  selectedNode,
-  visible,
-  closeModal,
-}: NodeModalProps) => {
-  const nodeData = Array.isArray(selectedNode)
-    ? Object.fromEntries(selectedNode)
-    : selectedNode;
-
-  const handleClipboard = () => {
-    toast.success("Content copied to clipboard!");
-    navigator.clipboard.writeText(JSON.stringify(nodeData));
-    closeModal();
+const dataToString = (data: any) => {
+  const text = Array.isArray(data) ? Object.fromEntries(data) : data;
+  const replacer = (_: string, v: string) => {
+    if (typeof v === "string") return v.replaceAll('"', "");
+    return v;
   };
 
+  return JSON.stringify(text, replacer, 2);
+};
+
+export const NodeModal = ({ opened, onClose }: ModalProps) => {
+  const setVisible = useModal(state => state.setVisible);
+  const nodeData = useGraph(state => dataToString(state.selectedNode?.text));
+  const path = useGraph(state => state.selectedNode?.path || "");
+
   return (
-    <Modal visible={visible} setVisible={closeModal}>
-      <Modal.Header>Node Content</Modal.Header>
-      <Modal.Content>
-        <StyledTextarea
-          defaultValue={JSON.stringify(
-            nodeData,
-            (_, v) => {
-              if (typeof v === "string") return v.replaceAll('"', "");
-              return v;
-            },
-            2
-          )}
-          readOnly
-        />
-      </Modal.Content>
-      <Modal.Controls setVisible={closeModal}>
-        <Button status="SECONDARY" onClick={handleClipboard}>
-          <FiCopy size={18} /> Clipboard
+    <Modal title="Node Content" size="auto" opened={opened} onClose={onClose} centered>
+      <Stack py="sm" gap="sm">
+        <Stack gap="xs">
+          <Text fz="xs" fw={500}>
+            Content
+          </Text>
+          <ScrollArea.Autosize mah={250} maw={600}>
+            <CodeHighlight code={nodeData} miw={350} maw={600} language="json" withCopyButton />
+          </ScrollArea.Autosize>
+        </Stack>
+        <Button
+          onClick={() => {
+            setVisible("upgrade")(true);
+            gaEvent("click_node_edit");
+          }}
+          rightSection={<VscLock strokeWidth={0.5} />}
+        >
+          Edit
         </Button>
-      </Modal.Controls>
+        <Text fz="xs" fw={500}>
+          JSON Path
+        </Text>
+        <ScrollArea.Autosize maw={600}>
+          <CodeHighlight
+            code={path}
+            miw={350}
+            mah={250}
+            language="json"
+            copyLabel="Copy to clipboard"
+            copiedLabel="Copied to clipboard"
+            withCopyButton
+          />
+        </ScrollArea.Autosize>
+      </Stack>
     </Modal>
   );
 };

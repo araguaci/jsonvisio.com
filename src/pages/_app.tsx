@@ -1,79 +1,93 @@
 import React from "react";
 import type { AppProps } from "next/app";
-import { Toaster } from "react-hot-toast";
+import { createTheme, MantineProvider } from "@mantine/core";
+import "@mantine/core/styles.css";
+import "@mantine/code-highlight/styles.css";
 import { ThemeProvider } from "styled-components";
-import { init } from "@sentry/nextjs";
-
+import { NextSeo } from "next-seo";
+import { GoogleAnalytics } from "nextjs-google-analytics";
+import { Toaster } from "react-hot-toast";
 import GlobalStyle from "src/constants/globalStyle";
-import { darkTheme, lightTheme } from "src/constants/theme";
-import { GoogleAnalytics } from "src/components/GoogleAnalytics";
-import useConfig from "src/hooks/store/useConfig";
-import { decompress } from "compress-json";
-import { useRouter } from "next/router";
-import { isValidJson } from "src/utils/isValidJson";
-import useStored from "src/hooks/store/useStored";
+import { SEO } from "src/constants/seo";
+import { lightTheme } from "src/constants/theme";
+import { supabase } from "src/lib/api/supabase";
+import useUser from "src/store/useUser";
 
-if (process.env.NODE_ENV !== "development") {
-  init({
-    dsn: "https://d3345591295d4dd1b8c579b62003d939@o1284435.ingest.sentry.io/6495191",
-    tracesSampleRate: 0.5,
-  });
-}
+const theme = createTheme({
+  autoContrast: true,
+  fontSmoothing: false,
+  respectReducedMotion: true,
+  cursorType: "pointer",
+  fontFamily:
+    'system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji"',
+  defaultGradient: {
+    from: "#388cdb",
+    to: "#0f037f",
+    deg: 180,
+  },
+  primaryShade: 8,
+  colors: {
+    brightBlue: [
+      "#e6f2ff",
+      "#cee1ff",
+      "#9bc0ff",
+      "#649dff",
+      "#3980fe",
+      "#1d6dfe",
+      "#0964ff",
+      "#0054e4",
+      "#004acc",
+      "#003fb5",
+    ],
+  },
+  radius: {
+    lg: "12px",
+  },
+  components: {
+    Button: {
+      defaultProps: {
+        fw: 500,
+      },
+    },
+  },
+});
+
+const IS_PROD = process.env.NODE_ENV === "production";
 
 function JsonCrack({ Component, pageProps }: AppProps) {
-  const { query } = useRouter();
-  const lightmode = useStored((state) => state.lightmode);
-  const setJson = useConfig((state) => state.setJson);
-  const [isRendered, setRendered] = React.useState(false);
+  const setSession = useUser(state => state.setSession);
 
   React.useEffect(() => {
-    const isJsonValid =
-      typeof query.json === "string" &&
-      isValidJson(decodeURIComponent(query.json));
-
-    if (isJsonValid) {
-      const jsonDecoded = decompress(JSON.parse(isJsonValid));
-      const jsonString = JSON.stringify(jsonDecoded);
-
-      setJson(jsonString);
-    }
-  }, [query.json, setJson]);
-
-  React.useEffect(() => {
-    if (!window.matchMedia("(display-mode: standalone)").matches) {
-      navigator.serviceWorker
-        ?.getRegistrations()
-        .then(function (registrations) {
-          for (let registration of registrations) {
-            registration.unregister();
-          }
-        })
-        .catch(function (err) {
-          console.error("Service Worker registration failed: ", err);
-        });
-    }
-
-    setRendered(true);
-  }, []);
-
-  if (!isRendered) return null;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setSession(session);
+    });
+  }, [setSession]);
 
   return (
     <>
-      <GoogleAnalytics />
-      <ThemeProvider theme={lightmode ? lightTheme : darkTheme}>
-        <GlobalStyle />
-        <Component {...pageProps} />
-        <Toaster
-          position="bottom-right"
-          toastOptions={{
-            style: {
-              background: "#4D4D4D",
-              color: "#B9BBBE",
-            },
-          }}
-        />
-      </ThemeProvider>
+      <NextSeo {...SEO} />
+      <MantineProvider defaultColorScheme="light" theme={theme}>
+        <ThemeProvider theme={lightTheme}>
+          <Toaster
+            position="bottom-right"
+            containerStyle={{
+              bottom: 34,
+              right: 8,
+              fontSize: 14,
+            }}
+            toastOptions={{
+              style: {
+                background: "#4D4D4D",
+                color: "#B9BBBE",
+                borderRadius: 4,
+              },
+            }}
+          />
+          <GlobalStyle />
+          {IS_PROD && <GoogleAnalytics trackPageViews />}
+          <Component {...pageProps} />
+        </ThemeProvider>
+      </MantineProvider>
     </>
   );
 }
