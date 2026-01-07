@@ -1,9 +1,9 @@
 import React from "react";
 import { Box, Container, Paper, Stack, Text, Title } from "@mantine/core";
 import { NextSeo } from "next-seo";
-import { SEO } from "src/constants/seo";
-import privacy from "src/data/privacy.json";
-import Layout from "src/layout/Layout";
+import { SEO } from "../../constants/seo";
+import privacy from "../../data/privacy.json";
+import Layout from "../../layout/PageLayout";
 
 const Privacy = () => {
   return (
@@ -20,7 +20,7 @@ const Privacy = () => {
             Privacy Policy
           </Title>
           <Text c="gray.6" ta="center">
-            Last updated: May 21, 2024
+            Last updated: Feb 5, 2025
           </Text>
 
           <Stack mt={50} my="lg">

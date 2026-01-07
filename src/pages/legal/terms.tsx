@@ -1,9 +1,9 @@
 import React from "react";
 import { Box, Container, Paper, Stack, Text, Title } from "@mantine/core";
 import { NextSeo } from "next-seo";
-import { SEO } from "src/constants/seo";
-import terms from "src/data/terms.json";
-import Layout from "src/layout/Layout";
+import { SEO } from "../../constants/seo";
+import terms from "../../data/terms.json";
+import Layout from "../../layout/PageLayout";
 
 const Terms = () => {
   return (
@@ -20,7 +20,7 @@ const Terms = () => {
             Terms of Service
           </Title>
           <Text c="gray.6" ta="center">
-            Last updated: Aug 11, 2024
+            Last updated: No 30, 2024
           </Text>
 
           <Stack mt={50} my="lg">

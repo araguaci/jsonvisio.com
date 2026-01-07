@@ -1,17 +1,17 @@
 import React from "react";
 import type { AppProps } from "next/app";
+import { useRouter } from "next/router";
 import { createTheme, MantineProvider } from "@mantine/core";
 import "@mantine/core/styles.css";
 import "@mantine/code-highlight/styles.css";
 import { ThemeProvider } from "styled-components";
-import { NextSeo } from "next-seo";
+import { NextSeo, SoftwareAppJsonLd } from "next-seo";
 import { GoogleAnalytics } from "nextjs-google-analytics";
 import { Toaster } from "react-hot-toast";
-import GlobalStyle from "src/constants/globalStyle";
-import { SEO } from "src/constants/seo";
-import { lightTheme } from "src/constants/theme";
-import { supabase } from "src/lib/api/supabase";
-import useUser from "src/store/useUser";
+import GlobalStyle from "../constants/globalStyle";
+import { SEO } from "../constants/seo";
+import { lightTheme } from "../constants/theme";
+import { smartColorSchemeManager } from "../lib/utils/mantineColorScheme";
 
 const theme = createTheme({
   autoContrast: true,
@@ -52,21 +52,34 @@ const theme = createTheme({
   },
 });
 
-const IS_PROD = process.env.NODE_ENV === "production";
-
 function JsonCrack({ Component, pageProps }: AppProps) {
-  const setSession = useUser(state => state.setSession);
+  const { pathname } = useRouter();
 
-  React.useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setSession(session);
-    });
-  }, [setSession]);
+  // Create a single smart manager that handles pathname logic internally
+  const colorSchemeManager = smartColorSchemeManager({
+    key: "editor-color-scheme",
+    getPathname: () => pathname,
+    dynamicPaths: ["/editor"], // Only editor paths use dynamic theme
+  });
 
   return (
     <>
       <NextSeo {...SEO} />
-      <MantineProvider defaultColorScheme="light" theme={theme}>
+      <SoftwareAppJsonLd
+        name="JSON Crack"
+        price="0"
+        priceCurrency="USD"
+        type="SoftwareApplication"
+        operatingSystem="Browser"
+        keywords="json, json viewer, json visualizer, json formatter, json editor, json parser, json to tree view, json to diagram, json graph, json beautifier, json validator, json to csv, json to yaml, json minifier, json schema, json data transformer, json api, online json viewer, online json formatter, online json editor, json tool"
+        applicationCategory="DeveloperApplication"
+        aggregateRating={{ ratingValue: "4.9", ratingCount: "19" }}
+      />
+      <MantineProvider
+        colorSchemeManager={colorSchemeManager}
+        defaultColorScheme="light"
+        theme={theme}
+      >
         <ThemeProvider theme={lightTheme}>
           <Toaster
             position="bottom-right"
@@ -84,7 +97,7 @@ function JsonCrack({ Component, pageProps }: AppProps) {
             }}
           />
           <GlobalStyle />
-          {IS_PROD && <GoogleAnalytics trackPageViews />}
+          {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && <GoogleAnalytics trackPageViews />}
           <Component {...pageProps} />
         </ThemeProvider>
       </MantineProvider>

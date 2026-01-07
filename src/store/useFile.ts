@@ -2,51 +2,15 @@ import debounce from "lodash.debounce";
 import { event as gaEvent } from "nextjs-google-analytics";
 import { toast } from "react-hot-toast";
 import { create } from "zustand";
-import { FileFormat } from "src/enums/file.enum";
-import { documentSvc } from "src/lib/api/document.service";
-import { isIframe } from "src/lib/utils/helpers";
-import { contentToJson, jsonToContent } from "src/lib/utils/jsonAdapter";
-import useGraph from "../containers/Editor/components/views/GraphView/stores/useGraph";
+import exampleJson from "../data/example.json";
+import { FileFormat } from "../enums/file.enum";
+import useGraph from "../features/editor/views/GraphView/stores/useGraph";
+import { isIframe } from "../lib/utils/helpers";
+import { contentToJson, jsonToContent } from "../lib/utils/jsonAdapter";
 import useConfig from "./useConfig";
 import useJson from "./useJson";
 
-const defaultJson = JSON.stringify(
-  {
-    squadName: "Super hero squad",
-    homeTown: "Metro City",
-    formed: 2016,
-    secretBase: "Super tower",
-    active: true,
-    members: [
-      {
-        name: "Molecule Man",
-        age: 29,
-        secretIdentity: "Dan Jukes",
-        powers: ["Radiation resistance", "Turning tiny", "Radiation blast"],
-      },
-      {
-        name: "Madame Uppercut",
-        age: 39,
-        secretIdentity: "Jane Wilson",
-        powers: ["Million tonne punch", "Damage resistance", "Superhuman reflexes"],
-      },
-      {
-        name: "Eternal Flame",
-        age: 1000000,
-        secretIdentity: "Unknown",
-        powers: [
-          "Immortality",
-          "Heat Immunity",
-          "Inferno",
-          "Teleportation",
-          "Interdimensional travel",
-        ],
-      },
-    ],
-  },
-  null,
-  2
-);
+const defaultJson = JSON.stringify(exampleJson, null, 2);
 
 type SetContents = {
   contents?: string;
@@ -64,7 +28,6 @@ interface JsonActions {
   setError: (error: string | null) => void;
   setHasChanges: (hasChanges: boolean) => void;
   setContents: (data: SetContents) => void;
-  fetchFile: (fileId: string) => void;
   fetchUrl: (url: string) => void;
   setFormat: (format: FileFormat) => void;
   clear: () => void;
@@ -105,7 +68,7 @@ const isURL = (value: string) => {
 const debouncedUpdateJson = debounce((value: unknown) => {
   useGraph.getState().setLoading(true);
   useJson.getState().setJson(JSON.stringify(value, null, 2));
-}, 800);
+}, 400);
 
 const useFile = create<FileStates & JsonActions>()((set, get) => ({
   ...initialStates,
@@ -180,9 +143,8 @@ const useFile = create<FileStates & JsonActions>()((set, get) => ({
     }
   },
   checkEditorSession: (url, widget) => {
-    if (url && typeof url === "string") {
-      if (isURL(url)) return get().fetchUrl(url);
-      return get().fetchFile(url);
+    if (url && typeof url === "string" && isURL(url)) {
+      return get().fetchUrl(url);
     }
 
     let contents = defaultJson;
@@ -192,18 +154,6 @@ const useFile = create<FileStates & JsonActions>()((set, get) => ({
 
     if (format) set({ format });
     get().setContents({ contents, hasChanges: false });
-  },
-  fetchFile: async id => {
-    try {
-      const { data, error } = await documentSvc.getById(id);
-      if (error) throw error;
-
-      if (data?.length) get().setFile(data[0]);
-      if (data?.length === 0) throw new Error("Document not found");
-    } catch (error: any) {
-      if (error?.message) toast.error(error?.message);
-      get().setContents({ contents: defaultJson, hasChanges: false });
-    }
   },
 }));
 

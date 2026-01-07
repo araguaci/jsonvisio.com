@@ -2,13 +2,13 @@ import React from "react";
 import Link from "next/link";
 import { Button, Stack, Text, Title } from "@mantine/core";
 import { NextSeo } from "next-seo";
-import { SEO } from "src/constants/seo";
-import Layout from "src/layout/Layout";
+import { SEO } from "../constants/seo";
+import Layout from "../layout/PageLayout";
 
 const NotFound = () => {
   return (
     <Layout>
-      <NextSeo {...SEO} title="404 | ToDiagram" noindex nofollow />
+      <NextSeo {...SEO} title="404 | JSON Crack" noindex />
       <Stack mt={100} justify="center" align="center">
         <Title fz={150} style={{ fontFamily: "monospace" }}>
           404

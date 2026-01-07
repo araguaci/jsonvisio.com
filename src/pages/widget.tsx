@@ -5,11 +5,10 @@ import { useMantineColorScheme } from "@mantine/core";
 import { ThemeProvider } from "styled-components";
 import { NextSeo } from "next-seo";
 import toast from "react-hot-toast";
-import { darkTheme, lightTheme } from "src/constants/theme";
-import useGraph from "src/containers/Editor/components/views/GraphView/stores/useGraph";
-import { Toolbar } from "src/containers/Toolbar";
-import useFile from "src/store/useFile";
-import type { LayoutDirection } from "src/types/graph";
+import { darkTheme, lightTheme } from "../constants/theme";
+import useGraph from "../features/editor/views/GraphView/stores/useGraph";
+import useFile from "../store/useFile";
+import type { LayoutDirection } from "../types/graph";
 
 interface EmbedMessage {
   data: {
@@ -21,8 +20,12 @@ interface EmbedMessage {
   };
 }
 
+const ModalController = dynamic(() => import("../features/modals/ModalController"), {
+  ssr: false,
+});
+
 const GraphView = dynamic(
-  () => import("src/containers/Editor/components/views/GraphView").then(c => c.GraphView),
+  () => import("../features/editor/views/GraphView").then(c => c.GraphView),
   {
     ssr: false,
   }
@@ -71,13 +74,11 @@ const WidgetPage = () => {
   }, [setColorScheme, theme]);
 
   return (
-    <>
+    <ThemeProvider theme={theme === "dark" ? darkTheme : lightTheme}>
       <NextSeo noindex nofollow />
-      <ThemeProvider theme={theme === "dark" ? darkTheme : lightTheme}>
-        <Toolbar isWidget />
-        <GraphView isWidget />
-      </ThemeProvider>
-    </>
+      <ModalController />
+      <GraphView isWidget />
+    </ThemeProvider>
   );
 };
 
